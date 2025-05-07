@@ -12,7 +12,7 @@
 
 (defun ctos (c)        (make-string 1 :initial-element c))
 (defun str-con (str c) (concatenate 'string str (ctos c)))
-(defun whitespace (c)  (member c '(#\Space #\Tab #\Newline)))
+(defun whitespace (c)  (member c '(#\Space #\Tab #\Newline #\Return)))
 
 ;;=====================================================================
 ;; get-wspace   remove whitespace
@@ -100,10 +100,19 @@
          ((string=   lexeme ",")        'COMMA)
          ((string=   lexeme ";")        'SEMI)
          ((string=   lexeme ":=")       'ASSIGN)
-         ((string=   lexeme "")          'EOF)
-         ((is-id     lexeme)             'ID)
-         ((is-number lexeme)             'NUM)
-         (t                              'UNKNOWN)
+         ((string=   lexeme "+")        'PLUS)
+         ((string=   lexeme "*")        'TIMES)
+         ((string=   lexeme "begin")    'BEGIN)
+         ((string=   lexeme "end")      'END)
+         ((string=   lexeme ".")        'DOT)
+         ((string=   lexeme ":")        'COLON)
+         ((string=   lexeme "integer")  'INTEGER)
+         ((string=   lexeme "real")     'REAL)
+         ((string=   lexeme "boolean")  'BOOLEAN)
+         ((string=   lexeme "")         'EOF)
+         ((is-id     lexeme)            'ID)
+         ((is-number lexeme)            'NUM)
+         (t                             'UNKNOWN)
          )
     lexeme)
 )
@@ -259,7 +268,59 @@
 ; <operand>       --> id | number
 ;;=====================================================================
 
-;; *** TO BE DONE ***
+(defun stat-part (state)
+   (match state 'BEGIN)
+   (stat-list state)
+   (match state 'END)
+   (match state 'DOT))
+
+(defun stat-list (state)
+   (stat state)
+   (when (eq (token state) 'SEMI)
+      (match state 'SEMI)
+      (stat-list state)))
+
+(defun stat (state)
+   (assign-stat state))
+
+(defun assign-stat (state)
+   (if (not (symtab-member state (lexeme state)))
+      (semerr2 state))
+   (match state 'ID)
+   (match state 'ASSIGN)
+   (expr state))
+
+(defun expr (state)
+   (term state)
+   (when (eq (token state) 'PLUS)
+   (match state 'PLUS)
+   (expr state)))
+
+(defun term (state)
+   (factor state)
+   (when (eq (token state) 'TIMES)
+   (match state 'TIMES)
+   (term state)))
+
+(defun factor (state)
+   (cond
+      ((eq (token state) 'LPAREN)
+      (match state 'LPAREN)
+      (expr state)
+      (match state 'RPAREN))
+      (t
+      (operand state))))
+
+(defun operand (state)
+   (cond
+      ((eq (token state) 'ID)
+      (if (not (symtab-member state (lexeme state)))
+         (semerr2 state))
+         (match state 'ID))
+         ((eq (token state) 'NUM)
+         (match state 'NUM))
+         (t (synerr3 state))))
+
 
 ;;=====================================================================
 ; <var-part>     --> var <var-dec-list>
@@ -269,7 +330,45 @@
 ; <type>         --> integer | real | boolean
 ;;=====================================================================
 
-;; *** TO BE DONE ***
+(defun var-part (state)
+   (match state 'VAR)
+   (var-dec-list state))
+
+(defun var-dec-list (state)
+   (when (eq (token state) 'ID)
+      (var-dec state)
+      (var-dec-list state)))
+
+(defun add-id (state ids)
+   (when ids
+      (unless (symtab-member state (first ids))
+      (setf (pstate-symtab state)
+         (append (pstate-symtab state) (list (first ids)))))
+      (add-id state (rest ids))))
+      
+
+(defun var-dec (state)
+   (let ((id-list (id-list state)))
+      (match state 'COLON)
+      (let ((typ (parse-type state)))
+       (add-id state id-list))
+      (match state 'SEMI)))
+
+(defun id-list (state)
+   (let ((ids (list (lexeme state))))
+      (match state 'ID)
+      (if (eq (token state) 'COMMA)
+         (progn
+            (match state 'COMMA)
+            (append ids (id-list state)))
+         ids)))
+
+(defun parse-type (state)
+   (cond
+      ((eq (token state) 'INTEGER) (match state 'INTEGER) 'INTEGER)
+      ((eq (token state) 'REAL) (match state 'REAL) 'REAL)
+      ((eq (token state) 'BOOLEAN) (match state 'BOOLEAN) 'BOOLEAN)
+      (t (synerr2 state))))
 
 ;;=====================================================================
 ; <program-header>
@@ -326,7 +425,7 @@
 
 (defun parse-all ()
 
-;; *** TO BE DONE ***
+;;(directory "testfiles/*.pas")
 
 )
 
@@ -334,7 +433,7 @@
 ; THE PARSER - test all files
 ;;=====================================================================
 
-;; (parse-all)
+ (parse-all "testfiles/*.pas")
 
 ;;=====================================================================
 ; THE PARSER - test a single file
