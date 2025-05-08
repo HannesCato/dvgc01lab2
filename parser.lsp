@@ -339,29 +339,41 @@
       (var-dec state)
       (var-dec-list state)))
 
-(defun add-id (state ids)
-   (when ids
-      (unless (symtab-member state (first ids))
-      (setf (pstate-symtab state)
-         (append (pstate-symtab state) (list (first ids)))))
-      (add-id state (rest ids))))
-      
+(defun add-id (state id)
+  (let ((old-lookahead (pstate-lookahead state)))
+    (setf (pstate-lookahead state) (list 'ID id))
+    (if (symtab-member state id)
+        (progn
+          (semerr1 state)
+          (setf (pstate-lookahead state) old-lookahead))
+        (progn
+          (setf (pstate-symtab state)
+                (append (pstate-symtab state) (list id)))
+          (setf (pstate-lookahead state) old-lookahead)))))
+
+
 
 (defun var-dec (state)
-   (let ((id-list (id-list state)))
-      (match state 'COLON)
-      (let ((typ (parse-type state)))
-       (add-id state id-list))
-      (match state 'SEMI)))
+  (let ((id-list (id-list state)))
+    (match state 'COLON)
+    (parse-type state)
+    (match state 'SEMI)))
 
 (defun id-list (state)
-   (let ((ids (list (lexeme state))))
-      (match state 'ID)
-      (if (eq (token state) 'COMMA)
-         (progn
-            (match state 'COMMA)
-            (append ids (id-list state)))
-         ids)))
+  (let ((id (lexeme state)))
+    (add-id state id)
+    (match state 'ID)
+    (id-list-aux state (list id))))
+
+(defun id-list-aux (state acc)
+  (if (eq (first (pstate-lookahead state)) 'COMMA)
+      (progn
+        (match state 'COMMA)
+        (let ((id (lexeme state)))
+          (add-id state id)
+          (match state 'ID)
+          (id-list-aux state (append acc (list id)))))
+      acc))
 
 (defun parse-type (state)
    (cond
