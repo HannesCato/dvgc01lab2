@@ -104,7 +104,7 @@
          ((string=   lexeme "*")        'TIMES)
          ((string=   lexeme "begin")    'BEGIN)
          ((string=   lexeme "end")      'END)
-         ((string=   lexeme ".")        'DOT)
+         ((string=   lexeme ".")        'FSTOP)
          ((string=   lexeme ":")        'COLON)
          ((string=   lexeme "integer")  'INTEGER)
          ((string=   lexeme "real")     'REAL)
@@ -272,7 +272,7 @@
    (match state 'BEGIN)
    (stat-list state)
    (match state 'END)
-   (match state 'DOT))
+   (match state 'FSTOP))
 
 (defun stat-list (state)
    (stat state)
@@ -423,11 +423,11 @@
 ; THE PARSER - parse all the test files
 ;;=====================================================================
 
-(defun parse-all ()
+(defun parse-all (files)
+  (when files
+   (parse (namestring (first files)))
+   (parse-all(rest files))))
 
-;;(directory "testfiles/*.pas")
-
-)
 
 ;;=====================================================================
 ; THE PARSER - test all files
