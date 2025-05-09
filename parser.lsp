@@ -228,7 +228,17 @@
     (format t "*** Semantic error: ~S not declared.~%"
           (lexeme state))
     (setf (pstate-status state) 'NOTOK)
+    
 )
+(defun semerr3 (state)
+  (format t "*** Semantic error: found ~S      expected EOF.~%" (lexeme state))
+  (setf (pstate-status state) 'NOTOK))
+
+(defun check-end (state)
+  (loop while (not (eq (token state) 'EOF)) do
+    (semerr3 state)
+    (get-token state)))
+
 
 ;;=====================================================================
 ; The return value from get-token is always a list. (token lexeme)
@@ -284,11 +294,22 @@
    (assign-stat state))
 
 (defun assign-stat (state)
-   (if (not (symtab-member state (lexeme state)))
-      (semerr2 state))
-   (match state 'ID)
-   (match state 'ASSIGN)
-   (expr state))
+  (cond
+    ((eq (token state) 'ID)
+     (when (not (symtab-member state (lexeme state)))
+       (semerr2 state))
+     (match state 'ID)
+     (match state 'ASSIGN)
+     (expr state))
+    (t
+     ;; ID saknas — logga felet men försök ändå matcha ASSIGN på samma token
+     (synerr1 state 'ID)
+     (match state 'ASSIGN) ; detta loggar felet "Expected ASSIGN found 3" på rätt token
+     (expr state))))
+
+
+
+
 
 (defun expr (state)
    (term state)
@@ -312,14 +333,16 @@
       (operand state))))
 
 (defun operand (state)
-   (cond
-      ((eq (token state) 'ID)
-      (if (not (symtab-member state (lexeme state)))
-         (semerr2 state))
-         (match state 'ID))
-         ((eq (token state) 'NUM)
-         (match state 'NUM))
-         (t (synerr3 state))))
+  (cond
+   ((eq (token state) 'ID)
+    (if (not (symtab-member state (lexeme state)))
+        (semerr2 state))
+    (match state 'ID))
+   ((eq (token state) 'NUM)
+    (match state 'NUM))
+   (t
+    (synerr3 state))))
+
 
 
 ;;=====================================================================
@@ -348,8 +371,9 @@
           (setf (pstate-lookahead state) old-lookahead))
         (progn
           (setf (pstate-symtab state)
-                (append (pstate-symtab state) (list id)))
+                (append (pstate-symtab state) (list id))) 
           (setf (pstate-lookahead state) old-lookahead)))))
+
 
 
 
@@ -400,11 +424,12 @@
 ; <program> --> <program-header><var-part><stat-part>
 ;;=====================================================================
 (defun program (state)
-   (program-header state)
-   (var-part       state)
-   (stat-part      state)
-   (symtab-display state)
-)
+  (program-header state)
+  (var-part       state)
+  (stat-part      state)
+  (check-end      state)  
+  (symtab-display state))
+
 
 ;;=====================================================================
 ; THE PARSER - parse a file
@@ -445,7 +470,8 @@
 ; THE PARSER - test all files
 ;;=====================================================================
 
- (parse-all "testfiles/*.pas")
+(parse-all (directory "testfiles/*.pas"))
+
 
 ;;=====================================================================
 ; THE PARSER - test a single file
@@ -456,3 +482,4 @@
 ;;=====================================================================
 ; THE PARSER - end of code
 ;;=====================================================================
+
