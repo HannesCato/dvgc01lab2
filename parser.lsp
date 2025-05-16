@@ -235,9 +235,11 @@
   (setf (pstate-status state) 'NOTOK))
 
 (defun check-end (state)
-  (loop while (not (eq (token state) 'EOF)) do
+  (when (not (eq (token state) 'EOF))
     (semerr3 state)
-    (get-token state)))
+    (get-token state)
+    (check-end state)))
+
 
 
 ;;=====================================================================
@@ -302,9 +304,9 @@
      (match state 'ASSIGN)
      (expr state))
     (t
-     ;; ID saknas — logga felet men försök ändå matcha ASSIGN på samma token
+     
      (synerr1 state 'ID)
-     (match state 'ASSIGN) ; detta loggar felet "Expected ASSIGN found 3" på rätt token
+     (match state 'ASSIGN)    
      (expr state))))
 
 
