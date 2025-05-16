@@ -393,12 +393,20 @@
 
 
 (defun id-list (state)
-  (if (eq (token state) 'ID)
-      (let ((id (lexeme state)))
-        (add-id state id)
-        (match state 'ID)
-        (id-list-aux state (list id)))
-      (synerr1 state 'ID)))
+  (cond
+    ((eq (token state) 'ID)
+     (let ((id (lexeme state)))
+       (add-id state id)
+       (match state 'ID)
+       (id-list-aux state (list id))))
+    ((eq (token state) 'COMMA)
+     
+     (synerr1 state 'ID)
+     (get-token state)
+     (id-list state))  
+    (t
+     (synerr1 state 'ID))))
+
 
 
 (defun id-list-aux (state acc)
