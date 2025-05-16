@@ -360,9 +360,20 @@
    (var-dec-list state))
 
 (defun var-dec-list (state)
-   (when (eq (token state) 'ID)
-      (var-dec state)
-      (var-dec-list state)))
+  (var-dec state)
+  (when (eq (token state) 'ID)
+    (var-dec-list state)))
+
+
+
+(defun var-dec (state)
+  (id-list state)        
+  (match state 'COLON)   
+  (parse-type state)
+  (match state 'SEMI))
+
+
+
 
 (defun add-id (state id)
   (let ((old-lookahead (pstate-lookahead state)))
@@ -379,17 +390,16 @@
 
 
 
-(defun var-dec (state)
-  (let ((id-list (id-list state)))
-    (match state 'COLON)
-    (parse-type state)
-    (match state 'SEMI)))
+
 
 (defun id-list (state)
-  (let ((id (lexeme state)))
-    (add-id state id)
-    (match state 'ID)
-    (id-list-aux state (list id))))
+  (if (eq (token state) 'ID)
+      (let ((id (lexeme state)))
+        (add-id state id)
+        (match state 'ID)
+        (id-list-aux state (list id)))
+      (synerr1 state 'ID)))
+
 
 (defun id-list-aux (state acc)
   (if (eq (first (pstate-lookahead state)) 'COMMA)
